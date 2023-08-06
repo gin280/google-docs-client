@@ -74,13 +74,13 @@ class CustomToolbar {
   }
 
   viewHistory() {
-    this.options.history.push(`/diff/${this.options.documentId}`);
+    this.options.navigate(`/diff/${this.options.documentId}`);
   }
 }
 
 export default function TextEditor() {
   const { id: documentId } = useParams();
-  const history = useNavigate();
+  const navigate = useNavigate();
   const [socket, setSocket] = useState();
   const [editorHtml, setEditorHtml] = useState("加载中...");
   const [saveStatus, setSaveStatus] = useState("");
@@ -162,7 +162,7 @@ export default function TextEditor() {
 
     const modules = {
       toolbar: TOOLBAR_OPTIONS,
-      customToolbar: { socket, history, documentId },
+      customToolbar: { socket, navigate, documentId },
     };
     return (
       <>
