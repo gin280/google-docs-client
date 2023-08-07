@@ -5,7 +5,7 @@ import ReactQuill, { Quill } from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { v4 as uuidV4 } from "uuid";
 import Delta from "quill-delta";
-import FollowButton from "./components/FollowButton";
+// import FollowButton from "./components/FollowButton";
 
 const SAVE_INTERVAL_MS = 1000;
 const TOOLBAR_OPTIONS = [
@@ -245,7 +245,7 @@ export default function TextEditor() {
     return (
       <>
         <div className="container">
-          <FollowButton label="插入模板" editorRef={editorContainerRef} />
+          {/* <FollowButton onClick={} label="插入模板" editorRef={editorContainerRef} /> */}
           <ReactQuill
             ref={(el) => {
               if (el != null) {
