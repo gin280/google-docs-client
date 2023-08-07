@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-
+import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 
 export default function FollowButton({ label, onClick, editorRef }) {
@@ -8,9 +7,10 @@ export default function FollowButton({ label, onClick, editorRef }) {
     left: "0px",
     top: "0px",
     zIndex: 1000,
-    display: "none", // 初始时隐藏
-    transition: "top 0.2s ease-out, left 0.2s ease-out", // 阻尼效果
+    display: "none",
   });
+
+  const hideTimeout = useRef(null); // 使用 useRef 来存储 hideTimeout
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -23,17 +23,25 @@ export default function FollowButton({ label, onClick, editorRef }) {
           e.clientY < editorBounds.bottom;
 
         if (isInsideEditor) {
+          if (hideTimeout.current) {
+            clearTimeout(hideTimeout.current);
+            hideTimeout.current = null;
+          }
           setStyle({
-            position: "fixed", // 使用fixed以便随滚动而滚动
-            left: editorBounds.left - 108 + "px", // 调整离左侧的距离，你可以更改这个值
-            top: e.clientY + "px",
+            position: "fixed",
+            left: editorBounds.left - 96 + "px",
+            top: e.clientY - 10 + "px",
             zIndex: 1000,
             display: "block",
           });
         } else {
-          setStyle({
-            display: "none", // 鼠标超出编辑器，隐藏按钮
-          });
+          if (!hideTimeout.current) {
+            hideTimeout.current = setTimeout(() => {
+              setStyle({
+                display: "none",
+              });
+            }, 500);
+          }
         }
       }
     };
@@ -41,11 +49,32 @@ export default function FollowButton({ label, onClick, editorRef }) {
     window.addEventListener("mousemove", handleMouseMove);
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
+      if (hideTimeout.current) {
+        clearTimeout(hideTimeout.current);
+      }
     };
   }, [editorRef]);
 
+  const handleMouseEnter = () => {
+    clearTimeout(hideTimeout.current);
+  };
+
+  const handleMouseLeave = () => {
+    hideTimeout.current = setTimeout(() => {
+      setStyle({
+        display: "none",
+      });
+    }, 500);
+  };
+
   return (
-    <button style={style} onClick={onClick}>
+    <button
+      className="followButton"
+      style={style}
+      onClick={onClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       {label}
     </button>
   );

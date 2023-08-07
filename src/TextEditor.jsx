@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import ReactQuill, { Quill } from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { v4 as uuidV4 } from "uuid";
+import Delta from "quill-delta";
 import FollowButton from "./components/FollowButton";
 
 const SAVE_INTERVAL_MS = 1000;
@@ -21,6 +22,8 @@ class CustomToolbar {
     this.quill = quill;
     this.options = options;
     const toolbar = quill.getModule("toolbar");
+
+    this.fetchTemplates();
 
     // Save status
     let saveStatusElement = document.createElement("span");
@@ -42,6 +45,18 @@ class CustomToolbar {
     saveTemplateButton.onclick = () => this.saveTemplate();
     toolbar.container.appendChild(saveTemplateButton);
 
+    // Template dropdown
+    let templateDropdown = document.createElement("select");
+    templateDropdown.id = "template-dropdown";
+    templateDropdown.onchange = (e) => this.insertTemplate(e.target.value);
+    templateDropdown.style.fontSize = "12px";
+    templateDropdown.style.backgroundColor = "#f8f9fa";
+    templateDropdown.style.border = "1px solid #ccc";
+    templateDropdown.style.padding = "5px 10px";
+    templateDropdown.style.marginRight = "10px";
+    templateDropdown.style.cursor = "pointer";
+    toolbar.container.appendChild(templateDropdown);
+
     // View history button
     let viewHistoryButton = document.createElement("span");
     viewHistoryButton.innerHTML = "历史记录";
@@ -55,6 +70,13 @@ class CustomToolbar {
   }
 
   saveTemplate() {
+    // 弹出一个对话框让用户输入模板名称
+    const templateName = prompt("请输入模板名称:");
+
+    if (templateName == null || templateName.trim() === "") {
+      return;
+    }
+
     const templateId = uuidV4();
     const content = this.quill.getContents();
 
@@ -62,9 +84,12 @@ class CustomToolbar {
       "save-as-template",
       templateId,
       content,
+      templateName, // 将模板名称发送到服务器
       (success) => {
         if (success) {
           console.log("Saved as template");
+          // 更新模板选择列表
+          this.fetchTemplates();
           // 你还可以添加其他逻辑，例如通知用户保存成功
         } else {
           console.log("Failed to save as template");
@@ -76,6 +101,54 @@ class CustomToolbar {
 
   viewHistory() {
     this.options.navigate(`/diff/${this.options.documentId}`);
+  }
+
+  // Fetch templates and populate dropdown
+  fetchTemplates() {
+    this.options.socket.emit("get-templates", (templates) => {
+      console.log("Templates", templates);
+
+      // 按创建日期排序，最新的在前面
+      templates.sort((a, b) => b.timeStamp - a.timeStamp);
+
+      let dropdown = document.getElementById("template-dropdown");
+
+      // 清空下拉列表
+      dropdown.innerHTML = "";
+
+      // 创建一个 "请选择模板" 的选项
+      let defaultOption = document.createElement("option");
+      defaultOption.value = "";
+      defaultOption.innerText = "-请选择模板-";
+      defaultOption.disabled = true;
+      defaultOption.selected = true;
+      // 将该选项添加到下拉列表的开头
+      dropdown.appendChild(defaultOption);
+
+      // 遍历模板并为每个模板添加一个选项
+      templates.forEach((template) => {
+        let option = document.createElement("option");
+        option.value = template._id;
+        option.innerText = template.name;
+        dropdown.appendChild(option);
+      });
+    });
+  }
+
+  // Insert selected template
+  insertTemplate(templateId) {
+    this.options.socket.emit("get-template", templateId, (template) => {
+      const cursorPosition = this.quill.getSelection(true).index;
+      const currentContent = this.quill.getContents();
+      const newContent = new Delta()
+        .concat(currentContent.slice(0, cursorPosition))
+        .concat(template.data)
+        .concat(currentContent.slice(cursorPosition));
+      this.quill.setContents(newContent, "user");
+      // 将下拉列表设置回默认选项
+      let dropdown = document.getElementById("template-dropdown");
+      dropdown.value = ""; // 假设默认选项的值为 ""
+    });
   }
 }
 
@@ -161,9 +234,7 @@ export default function TextEditor() {
 
     document.getElementById("save-status").innerText = saveStatus;
   };
-  const handleSaveTemplate = () => {
-    // 保存模板的逻辑
-  };
+
   if (socket) {
     Quill.register("modules/customToolbar", CustomToolbar);
 
@@ -174,11 +245,7 @@ export default function TextEditor() {
     return (
       <>
         <div className="container">
-          <FollowButton
-            label="保存为模板"
-            onClick={handleSaveTemplate}
-            editorRef={editorContainerRef}
-          />
+          <FollowButton label="插入模板" editorRef={editorContainerRef} />
           <ReactQuill
             ref={(el) => {
               if (el != null) {
