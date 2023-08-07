@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import ReactQuill, { Quill } from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { v4 as uuidV4 } from "uuid";
+import FollowButton from "./components/FollowButton";
 
 const SAVE_INTERVAL_MS = 1000;
 const TOOLBAR_OPTIONS = [
@@ -85,9 +86,13 @@ export default function TextEditor() {
   const [editorHtml, setEditorHtml] = useState("加载中...");
   const [saveStatus, setSaveStatus] = useState("");
   const quillRef = useRef(null);
+  const editorContainerRef = useRef(null);
 
   useEffect(() => {
-    console.log(import.meta.env.VITE_SOCKET_URL, 'import.meta.env.VITE_SOCKET_URLL')
+    console.log(
+      import.meta.env.VITE_SOCKET_URL,
+      "import.meta.env.VITE_SOCKET_URLL"
+    );
     const s = io(import.meta.env.VITE_SOCKET_URL);
     setSocket(s);
 
@@ -103,20 +108,19 @@ export default function TextEditor() {
     }
   }, [saveStatus]);
 
-
   useEffect(() => {
-    if (socket == null) return
+    if (socket == null) return;
 
-    const handler = delta => {
-      console.info('receive-changes', delta)
-      setEditorHtml(delta)
-    }
-    socket.on("receive-changes", handler)
+    const handler = (delta) => {
+      console.info("receive-changes", delta);
+      setEditorHtml(delta);
+    };
+    socket.on("receive-changes", handler);
 
     return () => {
-      socket.off("receive-changes", handler)
-    }
-  }, [socket])
+      socket.off("receive-changes", handler);
+    };
+  }, [socket]);
 
   useEffect(() => {
     if (socket == null) return;
@@ -134,7 +138,7 @@ export default function TextEditor() {
   const handleChange = (content, delta, source, editor) => {
     setEditorHtml(content);
     if (source !== "user") return;
-    console.info('send-changes', content)
+    console.info("send-changes", content);
     socket.emit("send-changes", content);
 
     setSaveStatus("正在保存...");
@@ -157,6 +161,9 @@ export default function TextEditor() {
 
     document.getElementById("save-status").innerText = saveStatus;
   };
+  const handleSaveTemplate = () => {
+    // 保存模板的逻辑
+  };
   if (socket) {
     Quill.register("modules/customToolbar", CustomToolbar);
 
@@ -167,9 +174,17 @@ export default function TextEditor() {
     return (
       <>
         <div className="container">
+          <FollowButton
+            label="保存为模板"
+            onClick={handleSaveTemplate}
+            editorRef={editorContainerRef}
+          />
           <ReactQuill
             ref={(el) => {
-              quillRef.current = el;
+              if (el != null) {
+                quillRef.current = el;
+                editorContainerRef.current = el.getEditor().container;
+              }
             }}
             value={editorHtml}
             onChange={handleChange}
